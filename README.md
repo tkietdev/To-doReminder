@@ -1,6 +1,23 @@
 # Ứng dụng quản lý công việc cá nhân (To-do + Reminder)
 
-A new Flutter project.
+Cài đặt dependencies
+
+flutter pub get
+4️⃣ Cấu hình Firebase
+
+A. Cài đặt Firebase CLI và FlutterFire CLI
+
+# Cài đặt Firebase CLI
+npm install -g firebase-tools
+
+# Đăng nhập Firebase
+firebase login
+
+# Cài đặt FlutterFire CLI
+dart pub global activate flutterfire_cli
+
+# Chạy ứng dụng 
+ flutter run -d chrome
 
 ## Getting Started
 

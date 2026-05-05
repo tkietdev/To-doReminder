@@ -1,0 +1,37 @@
+name: taskmate
+description: Ứng dụng quản lý công việc cá nhân
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0-290.4.beta
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  intl: ^0.20.2
+  shared_preferences: ^2.2.2
+  provider: ^6.1.1
+
+  # Firebase
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.2
+  firebase_messaging: ^15.1.5
+
+  # ✅ THÊM PACKAGES CHO NOTIFICATIONS
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+flutter:
+  uses-material-design: true

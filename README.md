@@ -1,4 +1,4 @@
-# todo_rember
+# Ứng dụng quản lý công việc cá nhân (To-do + Reminder)
 
 A new Flutter project.
 

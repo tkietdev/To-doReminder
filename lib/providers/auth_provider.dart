@@ -14,7 +14,6 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _currentUser != null;
 
-  // Khởi tạo và kiểm tra người dùng đã đăng nhập
   Future<void> initAuth() async {
     _isLoading = true;
     notifyListeners();
@@ -22,7 +21,6 @@ class AuthProvider with ChangeNotifier {
     try {
       final firebaseUser = _auth.currentUser;
       if (firebaseUser != null) {
-        // Lấy thông tin user từ Firestore
         final doc = await _firestore
             .collection('users')
             .doc(firebaseUser.uid)
@@ -43,19 +41,15 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Đăng ký tài khoản mới với Firebase
   Future<String?> register(String email, String password, String name) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Tạo user trong Firebase Auth
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // Lưu thông tin user vào Firestore
       final newUser = UserModel(
         id: credential.user!.uid,
         email: email,
@@ -66,13 +60,11 @@ class AuthProvider with ChangeNotifier {
           .collection('users')
           .doc(credential.user!.uid)
           .set(newUser.toJson());
-
-      // Đăng xuất sau khi đăng ký (để user phải login lại)
       await _auth.signOut();
 
       _isLoading = false;
       notifyListeners();
-      return null; // Success
+      return null;
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
       notifyListeners();
@@ -94,7 +86,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Đăng nhập với Firebase
   Future<String?> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
@@ -104,8 +95,6 @@ class AuthProvider with ChangeNotifier {
         email: email,
         password: password,
       );
-
-      // Lấy thông tin user từ Firestore
       final doc = await _firestore
           .collection('users')
           .doc(credential.user!.uid)
@@ -146,7 +135,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Đăng xuất
   Future<void> logout() async {
     try {
       await _auth.signOut();
@@ -157,7 +145,6 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Cập nhật thông tin user
   Future<String?> updateProfile(String name) async {
     if (_currentUser == null) return 'Chưa đăng nhập';
 
@@ -175,20 +162,20 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Đổi mật khẩu
-  Future<String?> changePassword(String currentPassword, String newPassword) async {
+  Future<String?> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     if (_currentUser == null) return 'Chưa đăng nhập';
 
     try {
-      // Re-authenticate user
       final credential = EmailAuthProvider.credential(
         email: _currentUser!.email,
         password: currentPassword,
       );
       await _auth.currentUser!.reauthenticateWithCredential(credential);
-
-      // Change password
       await _auth.currentUser!.updatePassword(newPassword);
-      return null; // Success
+      return null;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'wrong-password':

@@ -68,25 +68,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.task_outlined,
-                  size: 80,
-                  color: Colors.grey[300],
-                ),
+                Icon(Icons.task_outlined, size: 80, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
                   'Chưa có công việc nào',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Nhấn nút + để thêm công việc mới',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -238,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ THÊM VIEW CHO TAB NHÓM
+  // THÊM VIEW CHO TAB NHÓM
   Widget _buildGroupsView() {
     return Consumer<TaskProvider>(
       builder: (context, taskProvider, _) {
@@ -249,25 +240,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.group_outlined,
-                  size: 80,
-                  color: Colors.grey[300],
-                ),
+                Icon(Icons.group_outlined, size: 80, color: Colors.grey[300]),
                 const SizedBox(height: 16),
                 Text(
                   'Chưa có nhóm nào',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Tính năng đang phát triển',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(color: Colors.grey[500]),
                 ),
               ],
             ),
@@ -281,18 +263,14 @@ class _HomeScreenState extends State<HomeScreen> {
             final group = groups[index];
             return Card(
               child: ListTile(
-                leading: CircleAvatar(
-                  child: Text(group.name[0].toUpperCase()),
-                ),
+                leading: CircleAvatar(child: Text(group.name[0].toUpperCase())),
                 title: Text(group.name),
                 subtitle: Text('${group.memberIds.length} thành viên'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
                   // TODO: Navigate to group detail
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Tính năng đang phát triển'),
-                    ),
+                    const SnackBar(content: Text('Tính năng đang phát triển')),
                   );
                 },
               ),
@@ -303,7 +281,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -317,12 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 16))),
           Text(
             value,
             style: TextStyle(
@@ -336,7 +314,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showDeleteConfirmation(Task task, TaskProvider taskProvider, AuthProvider auth) {
+  void _showDeleteConfirmation(
+    Task task,
+    TaskProvider taskProvider,
+    AuthProvider auth,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -435,7 +417,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       await auth.logout();
                       if (context.mounted) {
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
                         );
                       }
                     },
@@ -452,21 +436,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 onTap: () async {
-                  final pending = await NotificationService().getPendingNotifications();
+                  final pending = await NotificationService()
+                      .getPendingNotifications();
                   if (context.mounted) {
                     showDialog(
                       context: context,
                       builder: (context) => AlertDialog(
-                        title: Text('Pending Notifications (${pending.length})'),
+                        title: Text(
+                          'Pending Notifications (${pending.length})',
+                        ),
                         content: SingleChildScrollView(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: pending.map((n) =>
-                                ListTile(
-                                  title: Text(n.title ?? 'No title'),
-                                  subtitle: Text(n.body ?? 'No body'),
+                            children: pending
+                                .map(
+                                  (n) => ListTile(
+                                    title: Text(n.title ?? 'No title'),
+                                    subtitle: Text(n.body ?? 'No body'),
+                                  ),
                                 )
-                            ).toList(),
+                                .toList(),
                           ),
                         ),
                       ),
@@ -489,42 +478,44 @@ class _HomeScreenState extends State<HomeScreen> {
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          Provider.of<TaskProvider>(context, listen: false)
-                              .setSearchQuery('');
-                        },
-                      )
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                Provider.of<TaskProvider>(
+                                  context,
+                                  listen: false,
+                                ).setSearchQuery('');
+                              },
+                            )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     onChanged: (value) {
-                      Provider.of<TaskProvider>(context, listen: false)
-                          .setSearchQuery(value);
+                      Provider.of<TaskProvider>(
+                        context,
+                        listen: false,
+                      ).setSearchQuery(value);
                     },
                   ),
                 ),
 
               // ✅ SỬ DỤNG HÀM _getSelectedView() thay vì ternary operator
-              Expanded(
-                child: _getSelectedView(),
-              ),
+              Expanded(child: _getSelectedView()),
             ],
           ),
           floatingActionButton: _selectedIndex == 0
               ? FloatingActionButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AddEditTaskScreen(),
-                ),
-              );
-            },
-            child: const Icon(Icons.add),
-          )
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AddEditTaskScreen(),
+                      ),
+                    );
+                  },
+                  child: const Icon(Icons.add),
+                )
               : null,
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _selectedIndex,
@@ -542,10 +533,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.bar_chart),
                 label: 'Thống kê',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.group),
-                label: 'Nhóm',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Nhóm'),
             ],
             selectedItemColor: Theme.of(context).colorScheme.primary,
           ),

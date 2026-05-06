@@ -11,22 +11,16 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
-
-  // Khởi tạo notification service
   Future<void> initialize() async {
     if (_isInitialized) return;
-
-    // Initialize timezone
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
-
-    // Android settings
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    // iOS settings
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -44,73 +38,60 @@ class NotificationService {
     );
 
     _isInitialized = true;
-    debugPrint('✅ Notification Service initialized');
+    debugPrint('Notification Service initialized');
   }
 
-  // Xử lý khi tap vào notification
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
     // TODO: Navigate to task detail
   }
 
-  // Request permissions
   Future<bool> requestPermissions() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final status = await Permission.notification.request();
       return status.isGranted;
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       final granted = await _notifications
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
       return granted ?? false;
     }
     return true;
   }
 
-  // Schedule notifications cho một task
   Future<void> scheduleTaskNotifications(Task task) async {
     if (!_isInitialized) await initialize();
 
     final now = DateTime.now();
     final deadline = task.deadline;
-
-    // Không schedule nếu task đã hoàn thành hoặc quá hạn
     if (task.isCompleted || deadline.isBefore(now)) {
       return;
     }
-
-    // Cancel notifications cũ của task này
     await cancelTaskNotifications(task.id);
-
-    // Danh sách các mốc thời gian thông báo
     final notifications = <Map<String, dynamic>>[
       {
-        'minutes': 1440, // 1 ngày = 1440 phút
-        'title': '📅 Công việc sắp đến hạn',
+        'minutes': 1440,
+        'title': 'Công việc sắp đến hạn',
         'body': '${task.title} sẽ đến hạn vào ngày mai',
       },
       {
-        'minutes': 60, // 1 giờ
-        'title': '⏰ Còn 1 giờ nữa!',
+        'minutes': 60,
+        'title': 'Còn 1 giờ nữa!',
         'body': '${task.title} sẽ đến hạn trong 1 giờ',
       },
       {
-        'minutes': 30, // 30 phút
-        'title': '⚠️ Còn 30 phút!',
+        'minutes': 30,
+        'title': 'Còn 30 phút!',
         'body': '${task.title} sắp đến hạn',
       },
       {
-        'minutes': 1, // 1 phút
-        'title': '🚨 GẤP! Còn 1 phút!',
+        'minutes': 1,
+        'title': 'GẤP! Còn 1 phút!',
         'body': '${task.title} sắp hết hạn',
       },
     ];
-
-    // Schedule từng notification
     for (int i = 0; i < notifications.length; i++) {
       final notif = notifications[i];
       final minutes = notif['minutes'] as int;
@@ -127,12 +108,11 @@ class NotificationService {
           priority: _getPriority(minutes),
         );
 
-        debugPrint('✅ Scheduled: ${notif['title']} at $notificationTime');
+        debugPrint('Scheduled: ${notif['title']} at $notificationTime');
       }
     }
   }
 
-  // Schedule một notification
   Future<void> _scheduleNotification({
     required int id,
     required String title,
@@ -172,7 +152,7 @@ class NotificationService {
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
+          UILocalNotificationDateInterpretation.absoluteTime,
       payload: payload,
     );
   }
@@ -182,21 +162,18 @@ class NotificationService {
     for (int i = 0; i < 4; i++) {
       await _notifications.cancel(_getNotificationId(taskId, i));
     }
-    debugPrint('❌ Cancelled notifications for task: $taskId');
+    debugPrint('Cancelled notifications for task: $taskId');
   }
 
-  // Cancel tất cả notifications
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
-    debugPrint('❌ Cancelled all notifications');
+    debugPrint('Cancelled all notifications');
   }
 
-  // Get pending notifications
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     return await _notifications.pendingNotificationRequests();
   }
 
-  // Show immediate notification (test)
   Future<void> showInstantNotification({
     required String title,
     required String body,

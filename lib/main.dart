@@ -16,13 +16,13 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    debugPrint('✅ Firebase initialized successfully');
+    debugPrint('Firebase initialized successfully');
 
     await NotificationService().initialize();
     await NotificationService().requestPermissions();
-    debugPrint('✅ Notification Service initialized');
+    debugPrint('Notification Service initialized');
   } catch (e) {
-    debugPrint('❌ Initialization error: $e');
+    debugPrint('Initialization error: $e');
   }
 
   runApp(const MyApp());
@@ -79,7 +79,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Khởi tạo auth khi app start
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AuthProvider>().initAuth();
     });
@@ -89,7 +88,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // Hiển thị loading khi đang check auth
         if (authProvider.isLoading) {
           return Scaffold(
             body: Center(
@@ -107,8 +105,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ),
           );
         }
-
-        // Nếu đã đăng nhập -> Home, chưa đăng nhập -> Login
         return authProvider.isAuthenticated
             ? const HomeScreen()
             : const LoginScreen();

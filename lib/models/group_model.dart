@@ -17,8 +17,8 @@ class Group {
     required this.memberIds,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   // Chuyển từ Firestore Document sang Group
   factory Group.fromFirestore(DocumentSnapshot doc) {

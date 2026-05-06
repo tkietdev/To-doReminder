@@ -15,9 +15,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nhóm của tôi'),
-      ),
+      appBar: AppBar(title: const Text('Nhóm của tôi')),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, _) {
           if (taskProvider.isLoading) {
@@ -31,25 +29,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.group_outlined,
-                    size: 80,
-                    color: Colors.grey[300],
-                  ),
+                  Icon(Icons.group_outlined, size: 80, color: Colors.grey[300]),
                   const SizedBox(height: 16),
                   Text(
                     'Chưa có nhóm nào',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Nhấn nút + để tạo nhóm mới',
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -154,10 +143,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(error),
-                      backgroundColor: Colors.red,
-                    ),
+                    SnackBar(content: Text(error), backgroundColor: Colors.red),
                   );
                 }
               }
@@ -208,10 +194,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 const SizedBox(height: 8),
                 Text(
                   group.description,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 24),
                 Row(
@@ -229,10 +212,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Tính năng đang phát triển',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
               ],
             ),
@@ -282,10 +262,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(error),
-                      backgroundColor: Colors.red,
-                    ),
+                    SnackBar(content: Text(error), backgroundColor: Colors.red),
                   );
                 }
               }
@@ -314,9 +291,7 @@ class _GroupCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -326,7 +301,9 @@ class _GroupCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withOpacity(0.1),
                 child: Text(
                   group.name[0].toUpperCase(),
                   style: TextStyle(
@@ -351,11 +328,7 @@ class _GroupCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(
-                          Icons.people,
-                          size: 14,
-                          color: Colors.grey[600],
-                        ),
+                        Icon(Icons.people, size: 14, color: Colors.grey[600]),
                         const SizedBox(width: 4),
                         Text(
                           '${group.memberIds.length} thành viên',

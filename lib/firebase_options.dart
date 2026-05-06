@@ -42,7 +42,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyDLa6XiIMcDQw7evZqqz4sMD117RSDiIb4',
-    appId: '1:925775424206:web:5f13351e60f76f6f417e9f',
+    appId: '1:925775424206:web:05c15b2988e36f16417e9f',
     messagingSenderId: '925775424206',
     projectId: 'taskmate-7a681',
     authDomain: 'taskmate-7a681.firebaseapp.com',
@@ -50,16 +50,16 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDN34KvKuKSWVRq4UnvnrojRTQmWD6Ypjw',
-    appId: '1:925775424206:android:37a3e8881d753f41417e9f',
+    apiKey: 'AIzaSyDLa6XiIMcDQw7evZqqz4sMD117RSDiIb4',
+    appId: '1:925775424206:web:05c15b2988e36f16417e9f',
     messagingSenderId: '925775424206',
     projectId: 'taskmate-7a681',
     storageBucket: 'taskmate-7a681.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDnLIJkGyrV7QCDLRU2-bFo73KeA8cXo9o',
-    appId: '1:925775424206:ios:fb6e9c88297b9c9e417e9f',
+    apiKey: 'AIzaSyDLa6XiIMcDQw7evZqqz4sMD117RSDiIb4',
+    appId: '1:925775424206:web:05c15b2988e36f16417e9f',
     messagingSenderId: '925775424206',
     projectId: 'taskmate-7a681',
     storageBucket: 'taskmate-7a681.firebasestorage.app',
@@ -67,8 +67,8 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDnLIJkGyrV7QCDLRU2-bFo73KeA8cXo9o',
-    appId: '1:925775424206:ios:fb6e9c88297b9c9e417e9f',
+    apiKey: 'AIzaSyDLa6XiIMcDQw7evZqqz4sMD117RSDiIb4',
+    appId: '1:925775424206:web:05c15b2988e36f16417e9f',
     messagingSenderId: '925775424206',
     projectId: 'taskmate-7a681',
     storageBucket: 'taskmate-7a681.firebasestorage.app',
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyDLa6XiIMcDQw7evZqqz4sMD117RSDiIb4',
-    appId: '1:925775424206:web:deb1e82231b57820417e9f',
+    appId: '1:925775424206:web:05c15b2988e36f16417e9f',
     messagingSenderId: '925775424206',
     projectId: 'taskmate-7a681',
     authDomain: 'taskmate-7a681.firebaseapp.com',

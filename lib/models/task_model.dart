@@ -23,7 +23,7 @@ enum TaskPriority {
 
   static TaskPriority fromString(String value) {
     return TaskPriority.values.firstWhere(
-          (e) => e.name == value,
+      (e) => e.name == value,
       orElse: () => TaskPriority.medium,
     );
   }
@@ -52,8 +52,8 @@ class Task {
     this.groupId,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   // Chuyển từ Firestore Document sang Task
   factory Task.fromFirestore(DocumentSnapshot doc) {
@@ -63,7 +63,9 @@ class Task {
       title: data['title'] as String? ?? '',
       description: data['description'] as String? ?? '',
       deadline: (data['deadline'] as Timestamp).toDate(),
-      priority: TaskPriority.fromString(data['priority'] as String? ?? 'medium'),
+      priority: TaskPriority.fromString(
+        data['priority'] as String? ?? 'medium',
+      ),
       isCompleted: data['isCompleted'] as bool? ?? false,
       userId: data['userId'] as String,
       groupId: data['groupId'] as String?,

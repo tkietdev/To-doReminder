@@ -96,9 +96,7 @@ class TaskCard extends StatelessWidget {
                             decoration: task.isCompleted
                                 ? TextDecoration.lineThrough
                                 : null,
-                            color: task.isCompleted
-                                ? Colors.grey
-                                : null,
+                            color: task.isCompleted ? Colors.grey : null,
                           ),
                         ),
                         if (task.description.isNotEmpty) ...[
@@ -239,24 +237,24 @@ class TaskCard extends StatelessWidget {
                       ),
                     )
                   else if (task.isCompleted)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Hoàn thành',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Hoàn thành',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
                 ],
               ),
             ],

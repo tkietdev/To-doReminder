@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+
 import 'firebase_options.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/task_provider.dart';
+import 'providers/group_provider.dart';
+
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+
 import 'services/notification_service.dart';
 
 void main() async {
@@ -35,8 +39,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => TaskProvider()),
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+        ChangeNotifierProvider<TaskProvider>(create: (_) => TaskProvider()),
+        ChangeNotifierProvider<GroupProvider>(create: (_) => GroupProvider()),
       ],
       child: MaterialApp(
         title: 'TaskMate',
@@ -51,7 +56,7 @@ class MyApp extends StatelessWidget {
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               elevation: 2,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -59,7 +64,16 @@ class MyApp extends StatelessWidget {
           ),
           inputDecorationTheme: InputDecorationTheme(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.blue, width: 1.5),
+            ),
             filled: true,
+            fillColor: Colors.grey.shade50,
           ),
         ),
         home: const AuthWrapper(),
@@ -76,12 +90,29 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
+  bool _hasInitialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().initAuth();
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_hasInitialized) {
+      _hasInitialized = true;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await context.read<AuthProvider>().initAuth();
+
+        if (!mounted) return;
+
+        final authProvider = context.read<AuthProvider>();
+        final userId = authProvider.currentUser?.id;
+
+        if (userId != null) {
+          await context.read<TaskProvider>().loadTasks(userId);
+          await context.read<GroupProvider>().loadGroups(userId);
+        }
+      });
+    }
   }
 
   @override
@@ -105,6 +136,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
             ),
           );
         }
+
         return authProvider.isAuthenticated
             ? const HomeScreen()
             : const LoginScreen();

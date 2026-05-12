@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
+import '../providers/group_provider.dart';
+
 import '../models/task_model.dart';
+
 import 'add_edit_task_screen.dart';
 import 'login_screen.dart';
+import 'groups_screen.dart';
+
 import '../services/notification_service.dart';
-// import 'groups_screen.dart'; // Tạm comment nếu chưa có file này
 import '../widgets/task_card.dart';
 import '../widgets/filter_bottom_sheet.dart';
 
@@ -19,22 +24,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final authProvider = context.read<AuthProvider>();
+    final taskProvider = context.read<TaskProvider>();
+    final groupProvider = context.read<GroupProvider>();
 
-    if (authProvider.currentUser != null) {
-      await taskProvider.loadTasks(authProvider.currentUser!.id);
-      await taskProvider.loadGroups(authProvider.currentUser!.id);
+    final userId = authProvider.currentUser?.id;
+
+    if (userId != null) {
+      await taskProvider.loadTasks(userId);
+      await groupProvider.loadGroups(userId);
     }
   }
 
@@ -90,23 +101,26 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: tasks.length,
             itemBuilder: (context, index) {
+              final task = tasks[index];
+
               return TaskCard(
-                task: tasks[index],
+                task: task,
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => AddEditTaskScreen(task: tasks[index]),
+                      builder: (_) => AddEditTaskScreen(task: task),
                     ),
                   );
                 },
                 onToggle: () {
-                  taskProvider.toggleTaskCompletion(
-                    tasks[index].id,
-                    auth.currentUser!.id,
-                  );
+                  final userId = auth.currentUser?.id;
+
+                  if (userId != null) {
+                    taskProvider.toggleTaskCompletion(task.id, userId);
+                  }
                 },
                 onDelete: () {
-                  _showDeleteConfirmation(tasks[index], taskProvider, auth);
+                  _showDeleteConfirmation(task, taskProvider, auth);
                 },
               );
             },
@@ -125,157 +139,108 @@ class _HomeScreenState extends State<HomeScreen> {
         final overdueTasks = taskProvider.getOverdueTasks().length;
         final upcomingTasks = taskProvider.getUpcomingTasks().length;
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Thống kê công việc',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildStatItem(
-                      'Tổng công việc',
-                      allTasks.length.toString(),
-                      Icons.list_alt,
-                      Colors.blue,
-                    ),
-                    _buildStatItem(
-                      'Đã hoàn thành',
-                      completedTasks.toString(),
-                      Icons.check_circle,
-                      Colors.green,
-                    ),
-                    _buildStatItem(
-                      'Đang thực hiện',
-                      pendingTasks.toString(),
-                      Icons.pending,
-                      Colors.orange,
-                    ),
-                    _buildStatItem(
-                      'Quá hạn',
-                      overdueTasks.toString(),
-                      Icons.warning,
-                      Colors.red,
-                    ),
-                    _buildStatItem(
-                      'Sắp đến hạn',
-                      upcomingTasks.toString(),
-                      Icons.access_time,
-                      Colors.purple,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (overdueTasks > 0)
+        return RefreshIndicator(
+          onRefresh: _loadData,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
               Card(
-                color: Colors.red[50],
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.red[700]),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Công việc quá hạn',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red[700],
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'Thống kê công việc',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      const SizedBox(height: 12),
-                      ...taskProvider.getOverdueTasks().map((task) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  task.title,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                              Text(
-                                DateFormat('dd/MM').format(task.deadline),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.red[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
+                      const SizedBox(height: 16),
+                      _buildStatItem(
+                        'Tổng công việc',
+                        allTasks.length.toString(),
+                        Icons.list_alt,
+                        Colors.blue,
+                      ),
+                      _buildStatItem(
+                        'Đã hoàn thành',
+                        completedTasks.toString(),
+                        Icons.check_circle,
+                        Colors.green,
+                      ),
+                      _buildStatItem(
+                        'Đang thực hiện',
+                        pendingTasks.toString(),
+                        Icons.pending,
+                        Colors.orange,
+                      ),
+                      _buildStatItem(
+                        'Quá hạn',
+                        overdueTasks.toString(),
+                        Icons.warning,
+                        Colors.red,
+                      ),
+                      _buildStatItem(
+                        'Sắp đến hạn',
+                        upcomingTasks.toString(),
+                        Icons.access_time,
+                        Colors.purple,
+                      ),
                     ],
                   ),
                 ),
               ),
-          ],
-        );
-      },
-    );
-  }
-
-  // THÊM VIEW CHO TAB NHÓM
-  Widget _buildGroupsView() {
-    return Consumer<TaskProvider>(
-      builder: (context, taskProvider, _) {
-        final groups = taskProvider.groups;
-
-        if (groups.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.group_outlined, size: 80, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  'Chưa có nhóm nào',
-                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              const SizedBox(height: 16),
+              if (overdueTasks > 0)
+                Card(
+                  color: Colors.red[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.red[700]),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Công việc quá hạn',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...taskProvider.getOverdueTasks().map((task) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    task.title,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                                Text(
+                                  DateFormat('dd/MM').format(task.deadline),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tính năng đang phát triển',
-                  style: TextStyle(color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: groups.length,
-          itemBuilder: (context, index) {
-            final group = groups[index];
-            return Card(
-              child: ListTile(
-                leading: CircleAvatar(child: Text(group.name[0].toUpperCase())),
-                title: Text(group.name),
-                subtitle: Text('${group.memberIds.length} thành viên'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  // TODO: Navigate to group detail
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Tính năng đang phát triển')),
-                  );
-                },
-              ),
-            );
-          },
+            ],
+          ),
         );
       },
     );
@@ -321,27 +286,33 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa công việc "${task.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          TextButton(
-            onPressed: () {
-              taskProvider.deleteTask(task.id, auth.currentUser!.id);
-              Navigator.pop(context);
-            },
-            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Xác nhận xóa'),
+          content: Text('Bạn có chắc muốn xóa công việc "${task.title}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Hủy'),
+            ),
+            TextButton(
+              onPressed: () {
+                final userId = auth.currentUser?.id;
+
+                if (userId != null) {
+                  taskProvider.deleteTask(task.id, userId);
+                }
+
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  // ✅ HÀM CHỌN VIEW THEO INDEX
   Widget _getSelectedView() {
     switch (_selectedIndex) {
       case 0:
@@ -349,10 +320,83 @@ class _HomeScreenState extends State<HomeScreen> {
       case 1:
         return _buildStatisticsView();
       case 2:
-        return _buildGroupsView();
+        return const GroupsScreen();
       default:
         return _buildTaskList();
     }
+  }
+
+  Future<void> _showPendingNotifications() async {
+    final pending = await NotificationService().getPendingNotifications();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Pending Notifications (${pending.length})'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: pending.isEmpty
+                  ? const [Text('Không có thông báo nào đang chờ')]
+                  : pending.map((n) {
+                      return ListTile(
+                        title: Text(n.title ?? 'No title'),
+                        subtitle: Text(n.body ?? 'No body'),
+                      );
+                    }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAccountDialog(AuthProvider auth) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Thông tin tài khoản'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tên: ${auth.currentUser?.name ?? ''}'),
+              const SizedBox(height: 8),
+              Text('Email: ${auth.currentUser?.email ?? ''}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _logout(AuthProvider auth) async {
+    await auth.logout();
+
+    if (!mounted) return;
+
+    context.read<TaskProvider>().clearTasks();
+    context.read<GroupProvider>().clearGroups();
+
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   @override
@@ -363,111 +407,64 @@ class _HomeScreenState extends State<HomeScreen> {
           appBar: AppBar(
             title: const Text('TaskMate'),
             actions: [
-              if (_selectedIndex == 0) // Chỉ hiện filter ở tab Công việc
+              if (_selectedIndex == 0)
                 IconButton(
                   icon: const Icon(Icons.filter_list),
                   onPressed: _showFilterSheet,
                 ),
-              PopupMenuButton(
+              PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    child: const Row(
-                      children: [
-                        Icon(Icons.person),
-                        SizedBox(width: 8),
-                        Text('Thông tin tài khoản'),
-                      ],
-                    ),
-                    onTap: () {
-                      Future.delayed(Duration.zero, () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Thông tin tài khoản'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Tên: ${auth.currentUser?.name}'),
-                                const SizedBox(height: 8),
-                                Text('Email: ${auth.currentUser?.email}'),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Đóng'),
-                              ),
-                            ],
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                  PopupMenuItem(
-                    child: const Row(
-                      children: [
-                        Icon(Icons.logout, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Đăng xuất', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                    onTap: () async {
-                      await auth.logout();
-                      if (context.mounted) {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-              // Thêm PopupMenuItem Xem Notifications
-              PopupMenuItem(
-                child: const Row(
-                  children: [
-                    Icon(Icons.list),
-                    SizedBox(width: 8),
-                    Text('Xem Notifications'),
-                  ],
-                ),
-                onTap: () async {
-                  final pending = await NotificationService()
-                      .getPendingNotifications();
-                  if (context.mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text(
-                          'Pending Notifications (${pending.length})',
-                        ),
-                        content: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: pending
-                                .map(
-                                  (n) => ListTile(
-                                    title: Text(n.title ?? 'No title'),
-                                    subtitle: Text(n.body ?? 'No body'),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      ),
-                    );
+                onSelected: (value) async {
+                  if (value == 'account') {
+                    _showAccountDialog(auth);
+                  } else if (value == 'notifications') {
+                    await _showPendingNotifications();
+                  } else if (value == 'logout') {
+                    await _logout(auth);
                   }
+                },
+                itemBuilder: (context) {
+                  return const [
+                    PopupMenuItem(
+                      value: 'account',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person),
+                          SizedBox(width: 8),
+                          Text('Thông tin tài khoản'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'notifications',
+                      child: Row(
+                        children: [
+                          Icon(Icons.list),
+                          SizedBox(width: 8),
+                          Text('Xem Notifications'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text(
+                            'Đăng xuất',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ];
                 },
               ),
             ],
           ),
           body: Column(
             children: [
-              // Search bar - chỉ hiện ở tab Công việc
               if (_selectedIndex == 0)
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -481,10 +478,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _searchController.clear();
-                                Provider.of<TaskProvider>(
-                                  context,
-                                  listen: false,
-                                ).setSearchQuery('');
+                                context.read<TaskProvider>().setSearchQuery('');
+                                setState(() {});
                               },
                             )
                           : null,
@@ -493,15 +488,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     onChanged: (value) {
-                      Provider.of<TaskProvider>(
-                        context,
-                        listen: false,
-                      ).setSearchQuery(value);
+                      context.read<TaskProvider>().setSearchQuery(value);
+                      setState(() {});
                     },
                   ),
                 ),
-
-              // ✅ SỬ DỤNG HÀM _getSelectedView() thay vì ternary operator
               Expanded(child: _getSelectedView()),
             ],
           ),
@@ -524,6 +515,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _selectedIndex = index;
               });
             },
+            selectedItemColor: Theme.of(context).colorScheme.primary,
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.list),
@@ -535,7 +527,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Nhóm'),
             ],
-            selectedItemColor: Theme.of(context).colorScheme.primary,
           ),
         );
       },

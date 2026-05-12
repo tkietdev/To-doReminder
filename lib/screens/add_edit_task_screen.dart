@@ -30,7 +30,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     super.initState();
     if (isEditMode) {
       _titleController = TextEditingController(text: widget.task!.title);
-      _descriptionController = TextEditingController(text: widget.task!.description);
+      _descriptionController = TextEditingController(
+        text: widget.task!.description,
+      );
       _selectedDeadline = widget.task!.deadline;
       _selectedTime = TimeOfDay.fromDateTime(widget.task!.deadline);
       _selectedPriority = widget.task!.priority;
@@ -158,18 +160,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEditMode
-                ? 'Cập nhật công việc thành công'
-                : 'Thêm công việc thành công'),
+            content: Text(
+              isEditMode
+                  ? 'Cập nhật công việc thành công'
+                  : 'Thêm công việc thành công',
+            ),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
       }
     }
@@ -280,10 +281,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
             // Priority
             const Text(
               'Độ ưu tiên *',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -318,9 +316,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                     color: isSelected ? Colors.white : color,
                     fontWeight: FontWeight.bold,
                   ),
-                  side: BorderSide(
-                    color: color.withOpacity(0.5),
-                  ),
+                  side: BorderSide(color: color.withOpacity(0.5)),
                 );
               }).toList(),
             ),
@@ -337,14 +333,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
               ),
               child: _isLoading
                   ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : Text(
-                isEditMode ? 'Cập nhật' : 'Thêm công việc',
-                style: const TextStyle(fontSize: 16),
-              ),
+                      isEditMode ? 'Cập nhật' : 'Thêm công việc',
+                      style: const TextStyle(fontSize: 16),
+                    ),
             ),
           ],
         ),

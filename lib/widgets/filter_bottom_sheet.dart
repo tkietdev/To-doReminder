@@ -36,10 +36,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             children: [
               const Text(
                 'Lọc công việc',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               TextButton(
                 onPressed: () {
@@ -57,10 +54,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           // Priority Filter
           const Text(
             'Độ ưu tiên',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -82,10 +76,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           // Status Filter
           const Text(
             'Trạng thái',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -112,10 +103,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              'Áp dụng',
-              style: TextStyle(fontSize: 16),
-            ),
+            child: const Text('Áp dụng', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 8),
         ],
@@ -140,9 +128,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         color: color,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
-      side: BorderSide(
-        color: color.withOpacity(0.5),
-      ),
+      side: BorderSide(color: color.withOpacity(0.5)),
     );
   }
 
@@ -172,9 +158,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         color: color,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
-      side: BorderSide(
-        color: color.withOpacity(0.5),
-      ),
+      side: BorderSide(color: color.withOpacity(0.5)),
     );
   }
 

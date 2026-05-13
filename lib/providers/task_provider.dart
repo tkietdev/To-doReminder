@@ -16,9 +16,9 @@ class TaskProvider with ChangeNotifier {
     var filtered = List<Task>.from(_tasks);
 
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((task) {
-        final query = _searchQuery.toLowerCase();
+      final query = _searchQuery.toLowerCase();
 
+      filtered = filtered.where((task) {
         return task.title.toLowerCase().contains(query) ||
             task.description.toLowerCase().contains(query);
       }).toList();
@@ -57,14 +57,29 @@ class TaskProvider with ChangeNotifier {
     try {
       _setLoading(true);
 
-      final snapshot = await _firestore
+      final personalSnapshot = await _firestore
           .collection('tasks')
           .where('userId', isEqualTo: userId)
           .get();
 
-      _tasks = snapshot.docs.map((doc) {
-        return Task.fromFirestore(doc);
-      }).toList();
+      final groupSnapshot = await _firestore
+          .collection('tasks')
+          .where('memberIds', arrayContains: userId)
+          .get();
+
+      final Map<String, Task> taskMap = {};
+
+      for (final doc in personalSnapshot.docs) {
+        final task = Task.fromFirestore(doc);
+        taskMap[task.id] = task;
+      }
+
+      for (final doc in groupSnapshot.docs) {
+        final task = Task.fromFirestore(doc);
+        taskMap[task.id] = task;
+      }
+
+      _tasks = taskMap.values.toList();
 
       _setLoading(false);
     } catch (e) {
@@ -77,7 +92,7 @@ class TaskProvider with ChangeNotifier {
     try {
       final docRef = await _firestore
           .collection('tasks')
-          .add(task.toFirestore());
+          .add(task.toCreateFirestore());
 
       final newTask = task.copyWith(id: docRef.id);
 
@@ -99,14 +114,14 @@ class TaskProvider with ChangeNotifier {
       await _firestore
           .collection('tasks')
           .doc(task.id)
-          .update(task.toFirestore());
+          .update(task.toUpdateFirestore());
 
       final index = _tasks.indexWhere((item) {
         return item.id == task.id;
       });
 
       if (index != -1) {
-        _tasks[index] = task;
+        _tasks[index] = task.copyWith(updatedAt: DateTime.now());
       }
 
       notifyListeners();
@@ -164,6 +179,18 @@ class TaskProvider with ChangeNotifier {
     } catch (e) {
       return 'Cập nhật trạng thái thất bại: $e';
     }
+  }
+
+  List<Task> getTasksByGroupId(String groupId) {
+    return _tasks.where((task) {
+      return task.groupId == groupId;
+    }).toList()..sort((a, b) {
+      if (a.isCompleted != b.isCompleted) {
+        return a.isCompleted ? 1 : -1;
+      }
+
+      return a.deadline.compareTo(b.deadline);
+    });
   }
 
   void setSearchQuery(String query) {

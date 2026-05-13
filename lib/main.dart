@@ -20,10 +20,12 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
     debugPrint('Firebase initialized successfully');
 
     await NotificationService().initialize();
     await NotificationService().requestPermissions();
+
     debugPrint('Notification Service initialized');
   } catch (e) {
     debugPrint('Initialization error: $e');
@@ -40,42 +42,89 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
+
         ChangeNotifierProvider<TaskProvider>(create: (_) => TaskProvider()),
+
         ChangeNotifierProvider<GroupProvider>(create: (_) => GroupProvider()),
       ],
+
       child: MaterialApp(
         title: 'TaskMate',
+
         debugShowCheckedModeBanner: false,
+
+        themeMode: ThemeMode.system,
+
         theme: ThemeData(
+          useMaterial3: true,
+
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
             brightness: Brightness.light,
           ),
-          useMaterial3: true,
+
+          scaffoldBackgroundColor: Colors.grey[50],
+
           appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
+
+          cardTheme: CardThemeData(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          ),
+
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               elevation: 2,
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
+
           inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey.shade300),
             ),
+
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.blue, width: 1.5),
             ),
-            filled: true,
-            fillColor: Colors.grey.shade50,
+          ),
+
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
+
+        darkTheme: ThemeData(
+          useMaterial3: true,
+
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.dark,
+          ),
+        ),
+
+        routes: {
+          '/login': (_) => const LoginScreen(),
+          '/home': (_) => const HomeScreen(),
+        },
+
         home: const AuthWrapper(),
       ),
     );
@@ -100,15 +149,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
       _hasInitialized = true;
 
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await context.read<AuthProvider>().initAuth();
+        final authProvider = context.read<AuthProvider>();
+
+        await authProvider.initAuth();
 
         if (!mounted) return;
 
-        final authProvider = context.read<AuthProvider>();
         final userId = authProvider.currentUser?.id;
 
         if (userId != null) {
           await context.read<TaskProvider>().loadTasks(userId);
+
+          if (!mounted) return;
+
           await context.read<GroupProvider>().loadGroups(userId);
         }
       });
@@ -124,9 +177,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+
                 children: [
                   const CircularProgressIndicator(),
+
                   const SizedBox(height: 16),
+
                   Text(
                     'Đang tải...',
                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),

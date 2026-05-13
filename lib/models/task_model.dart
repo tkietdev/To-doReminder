@@ -36,12 +36,15 @@ class Task {
   final DateTime deadline;
   final TaskPriority priority;
   final bool isCompleted;
+
   final String userId;
   final String? groupId;
+  final List<String> memberIds;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  Task({
+  const Task({
     required this.id,
     required this.title,
     required this.description,
@@ -50,70 +53,121 @@ class Task {
     required this.isCompleted,
     required this.userId,
     this.groupId,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+    this.memberIds = const [],
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
-  // Chuyển từ Firestore Document sang Task
+  factory Task.create({
+    required String title,
+    required String description,
+    required DateTime deadline,
+    required TaskPriority priority,
+    required String userId,
+    String? groupId,
+    List<String> memberIds = const [],
+  }) {
+    final now = DateTime.now();
+
+    return Task(
+      id: '',
+      title: title,
+      description: description,
+      deadline: deadline,
+      priority: priority,
+      isCompleted: false,
+      userId: userId,
+      groupId: groupId,
+      memberIds: memberIds,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   factory Task.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
     return Task(
       id: doc.id,
       title: data['title'] as String? ?? '',
       description: data['description'] as String? ?? '',
-      deadline: (data['deadline'] as Timestamp).toDate(),
+      deadline: _parseDateTime(data['deadline']),
       priority: TaskPriority.fromString(
         data['priority'] as String? ?? 'medium',
       ),
       isCompleted: data['isCompleted'] as bool? ?? false,
-      userId: data['userId'] as String,
+      userId: data['userId'] as String? ?? '',
       groupId: data['groupId'] as String?,
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      updatedAt: data['updatedAt'] != null
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(),
+      memberIds: List<String>.from(data['memberIds'] ?? []),
+      createdAt: _parseDateTime(data['createdAt']),
+      updatedAt: _parseDateTime(data['updatedAt']),
     );
   }
 
-  // Chuyển từ JSON sang Task
   factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
-      deadline: DateTime.parse(json['deadline'] as String),
-      priority: TaskPriority.fromString(json['priority'] as String),
-      isCompleted: json['isCompleted'] as bool,
-      userId: json['userId'] as String,
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      deadline: _parseDateTime(json['deadline']),
+      priority: TaskPriority.fromString(
+        json['priority'] as String? ?? 'medium',
+      ),
+      isCompleted: json['isCompleted'] as bool? ?? false,
+      userId: json['userId'] as String? ?? '',
       groupId: json['groupId'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : DateTime.now(),
+      memberIds: List<String>.from(json['memberIds'] ?? []),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
     );
   }
 
-  // Chuyển Task sang Map để lưu vào Firestore
   Map<String, dynamic> toFirestore() {
     return {
-      'title': title,
-      'description': description,
+      'title': title.trim(),
+      'description': description.trim(),
       'deadline': Timestamp.fromDate(deadline),
       'priority': priority.value,
       'isCompleted': isCompleted,
       'userId': userId,
       'groupId': groupId,
+      'memberIds': memberIds,
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  Map<String, dynamic> toCreateFirestore() {
+    final now = DateTime.now();
+
+    return {
+      'title': title.trim(),
+      'description': description.trim(),
+      'deadline': Timestamp.fromDate(deadline),
+      'priority': priority.value,
+      'isCompleted': isCompleted,
+      'userId': userId,
+      'groupId': groupId,
+      'memberIds': memberIds,
+      'createdAt': Timestamp.fromDate(now),
+      'updatedAt': Timestamp.fromDate(now),
+    };
+  }
+
+  Map<String, dynamic> toUpdateFirestore() {
+    return {
+      'title': title.trim(),
+      'description': description.trim(),
+      'deadline': Timestamp.fromDate(deadline),
+      'priority': priority.value,
+      'isCompleted': isCompleted,
+      'userId': userId,
+      'groupId': groupId,
+      'memberIds': memberIds,
       'updatedAt': Timestamp.fromDate(DateTime.now()),
     };
   }
 
-  // Chuyển Task sang JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -124,12 +178,12 @@ class Task {
       'isCompleted': isCompleted,
       'userId': userId,
       'groupId': groupId,
+      'memberIds': memberIds,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
-  // Copy with method
   Task copyWith({
     String? id,
     String? title,
@@ -139,6 +193,7 @@ class Task {
     bool? isCompleted,
     String? userId,
     String? groupId,
+    List<String>? memberIds,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -151,34 +206,60 @@ class Task {
       isCompleted: isCompleted ?? this.isCompleted,
       userId: userId ?? this.userId,
       groupId: groupId ?? this.groupId,
+      memberIds: memberIds ?? List<String>.from(this.memberIds),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
-  // Kiểm tra task có quá hạn không
+  bool get isGroupTask {
+    return groupId != null && groupId!.isNotEmpty;
+  }
+
+  bool get isPersonalTask {
+    return !isGroupTask;
+  }
+
   bool get isOverdue {
     if (isCompleted) return false;
     return deadline.isBefore(DateTime.now());
   }
 
-  // Kiểm tra task sắp đến hạn (trong 3 ngày)
   bool get isUpcoming {
     if (isCompleted || isOverdue) return false;
+
     final now = DateTime.now();
     final diff = deadline.difference(now).inDays;
+
     return diff <= 3 && diff >= 0;
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is DateTime) {
+      return value;
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+
+    return DateTime.now();
   }
 
   @override
   String toString() {
-    return 'Task(id: $id, title: $title, priority: ${priority.label}, isCompleted: $isCompleted)';
+    return 'Task(id: $id, title: $title, priority: ${priority.label}, groupId: $groupId, isCompleted: $isCompleted)';
   }
 
   @override
   bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Task && other.id == id;
+    return identical(this, other) || other is Task && other.id == id;
   }
 
   @override

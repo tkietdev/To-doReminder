@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/task_provider.dart';
+import '../providers/group_provider.dart';
+
 import '../models/task_model.dart';
+import '../models/group_model.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final Task? task;
@@ -16,32 +20,42 @@ class AddEditTaskScreen extends StatefulWidget {
 
 class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
   final _formKey = GlobalKey<FormState>();
+
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
+
   late DateTime _selectedDeadline;
   late TimeOfDay _selectedTime;
   late TaskPriority _selectedPriority;
+
   bool _isLoading = false;
+  bool _isGroupTask = false;
+  String? _selectedGroupId;
 
   bool get isEditMode => widget.task != null;
 
   @override
   void initState() {
     super.initState();
+
     if (isEditMode) {
-      _titleController = TextEditingController(text: widget.task!.title);
-      _descriptionController = TextEditingController(
-        text: widget.task!.description,
-      );
-      _selectedDeadline = widget.task!.deadline;
-      _selectedTime = TimeOfDay.fromDateTime(widget.task!.deadline);
-      _selectedPriority = widget.task!.priority;
+      final task = widget.task!;
+
+      _titleController = TextEditingController(text: task.title);
+      _descriptionController = TextEditingController(text: task.description);
+      _selectedDeadline = task.deadline;
+      _selectedTime = TimeOfDay.fromDateTime(task.deadline);
+      _selectedPriority = task.priority;
+      _isGroupTask = task.groupId != null && task.groupId!.isNotEmpty;
+      _selectedGroupId = task.groupId;
     } else {
       _titleController = TextEditingController();
       _descriptionController = TextEditingController();
       _selectedDeadline = DateTime.now().add(const Duration(days: 1));
       _selectedTime = const TimeOfDay(hour: 12, minute: 0);
       _selectedPriority = TaskPriority.medium;
+      _isGroupTask = false;
+      _selectedGroupId = null;
     }
   }
 
@@ -58,16 +72,6 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       initialDate: _selectedDeadline,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -87,16 +91,6 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
 
     if (picked != null) {
@@ -116,23 +110,34 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
   Future<void> _saveTask() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
     final authProvider = context.read<AuthProvider>();
     final taskProvider = context.read<TaskProvider>();
+    final groupProvider = context.read<GroupProvider>();
 
-    if (authProvider.currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Chưa đăng nhập'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      setState(() => _isLoading = false);
+    final user = authProvider.currentUser;
+
+    if (user == null) {
+      _showSnackBar('Chưa đăng nhập', Colors.red);
       return;
     }
+
+    Group? selectedGroup;
+
+    if (_isGroupTask) {
+      if (_selectedGroupId == null || _selectedGroupId!.isEmpty) {
+        _showSnackBar('Vui lòng chọn nhóm', Colors.red);
+        return;
+      }
+
+      selectedGroup = groupProvider.findGroupById(_selectedGroupId!);
+
+      if (selectedGroup == null) {
+        _showSnackBar('Không tìm thấy nhóm', Colors.red);
+        return;
+      }
+    }
+
+    setState(() => _isLoading = true);
 
     final task = Task(
       id: isEditMode ? widget.task!.id : '',
@@ -141,66 +146,58 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       deadline: _selectedDeadline,
       priority: _selectedPriority,
       isCompleted: isEditMode ? widget.task!.isCompleted : false,
-      userId: authProvider.currentUser!.id,
-      groupId: isEditMode ? widget.task!.groupId : null,
+      userId: user.id,
+      groupId: _isGroupTask ? selectedGroup!.id : null,
+      memberIds: _isGroupTask ? selectedGroup!.memberIds : [],
       createdAt: isEditMode ? widget.task!.createdAt : DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     String? error;
+
     if (isEditMode) {
       error = await taskProvider.updateTask(task);
     } else {
       error = await taskProvider.addTask(task);
     }
 
+    if (!mounted) return;
+
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      if (error == null) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isEditMode
-                  ? 'Cập nhật công việc thành công'
-                  : 'Thêm công việc thành công',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error), backgroundColor: Colors.red),
-        );
-      }
+    if (error == null) {
+      Navigator.pop(context);
+
+      _showSnackBar(
+        isEditMode
+            ? 'Cập nhật công việc thành công'
+            : 'Thêm công việc thành công',
+        Colors.green,
+      );
+    } else {
+      _showSnackBar(error, Colors.red);
     }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
+    final groups = context.watch<GroupProvider>().groups;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditMode ? 'Chỉnh sửa công việc' : 'Thêm công việc'),
-        actions: [
-          if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            ),
-        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Title
             TextFormField(
               controller: _titleController,
               decoration: InputDecoration(
@@ -211,17 +208,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              maxLength: 100,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Vui lòng nhập tiêu đề';
                 }
                 return null;
               },
-              maxLength: 100,
             ),
+
             const SizedBox(height: 16),
 
-            // Description
             TextFormField(
               controller: _descriptionController,
               decoration: InputDecoration(
@@ -236,9 +233,84 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
               maxLines: 4,
               maxLength: 500,
             ),
+
             const SizedBox(height: 16),
 
-            // Deadline Date
+            const Text(
+              'Loại công việc',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+
+            const SizedBox(height: 8),
+
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  icon: Icon(Icons.person),
+                  label: Text('Cá nhân'),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: Icon(Icons.group),
+                  label: Text('Nhóm'),
+                ),
+              ],
+              selected: {_isGroupTask},
+              onSelectionChanged: (value) {
+                setState(() {
+                  _isGroupTask = value.first;
+
+                  if (!_isGroupTask) {
+                    _selectedGroupId = null;
+                  }
+                });
+              },
+            ),
+
+            if (_isGroupTask) ...[
+              const SizedBox(height: 16),
+
+              DropdownButtonFormField<String>(
+                value: _selectedGroupId,
+                decoration: InputDecoration(
+                  labelText: 'Chọn nhóm *',
+                  prefixIcon: const Icon(Icons.group),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: groups.map((group) {
+                  return DropdownMenuItem<String>(
+                    value: group.id,
+                    child: Text(group.name),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedGroupId = value;
+                  });
+                },
+                validator: (value) {
+                  if (_isGroupTask && (value == null || value.isEmpty)) {
+                    return 'Vui lòng chọn nhóm';
+                  }
+                  return null;
+                },
+              ),
+
+              if (groups.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Bạn chưa có nhóm nào. Hãy tạo nhóm trước.',
+                    style: TextStyle(color: Colors.red[600], fontSize: 13),
+                  ),
+                ),
+            ],
+
+            const SizedBox(height: 16),
+
             InkWell(
               onTap: _selectDate,
               borderRadius: BorderRadius.circular(12),
@@ -256,9 +328,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // Deadline Time
             InkWell(
               onTap: _selectTime,
               borderRadius: BorderRadius.circular(12),
@@ -276,14 +348,16 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 16),
 
-            // Priority
             const Text(
               'Độ ưu tiên *',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
+
             const SizedBox(height: 12),
+
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -307,7 +381,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                   selected: isSelected,
                   onSelected: (selected) {
                     if (selected) {
-                      setState(() => _selectedPriority = priority);
+                      setState(() {
+                        _selectedPriority = priority;
+                      });
                     }
                   },
                   backgroundColor: color.withOpacity(0.1),
@@ -320,9 +396,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 );
               }).toList(),
             ),
+
             const SizedBox(height: 24),
 
-            // Save Button
             ElevatedButton(
               onPressed: _isLoading ? null : _saveTask,
               style: ElevatedButton.styleFrom(

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/task_model.dart';
+import '../services/api_client.dart';
 
 class TaskProvider with ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
   List<Task> _tasks = [];
   bool _isLoading = false;
@@ -17,7 +17,6 @@ class TaskProvider with ChangeNotifier {
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-
       filtered = filtered.where((task) {
         return task.title.toLowerCase().contains(query) ||
             task.description.toLowerCase().contains(query);
@@ -40,7 +39,6 @@ class TaskProvider with ChangeNotifier {
       if (a.isCompleted != b.isCompleted) {
         return a.isCompleted ? 1 : -1;
       }
-
       return a.deadline.compareTo(b.deadline);
     });
 
@@ -56,31 +54,11 @@ class TaskProvider with ChangeNotifier {
   Future<void> loadTasks(String userId) async {
     try {
       _setLoading(true);
-
-      final personalSnapshot = await _firestore
-          .collection('tasks')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      final groupSnapshot = await _firestore
-          .collection('tasks')
-          .where('memberIds', arrayContains: userId)
-          .get();
-
-      final Map<String, Task> taskMap = {};
-
-      for (final doc in personalSnapshot.docs) {
-        final task = Task.fromFirestore(doc);
-        taskMap[task.id] = task;
-      }
-
-      for (final doc in groupSnapshot.docs) {
-        final task = Task.fromFirestore(doc);
-        taskMap[task.id] = task;
-      }
-
-      _tasks = taskMap.values.toList();
-
+      final data = await _api.get('/tasks');
+      final rows = data['tasks'] as List<dynamic>? ?? [];
+      _tasks = rows.map((item) {
+        return Task.fromJson(item as Map<String, dynamic>);
+      }).toList();
       _setLoading(false);
     } catch (e) {
       debugPrint('Load tasks error: $e');
@@ -90,107 +68,76 @@ class TaskProvider with ChangeNotifier {
 
   Future<String?> addTask(Task task) async {
     try {
-      final docRef = await _firestore
-          .collection('tasks')
-          .add(task.toCreateFirestore());
-
-      final newTask = task.copyWith(id: docRef.id);
-
+      final data = await _api.post('/tasks', body: _taskPayload(task));
+      final newTask = Task.fromJson(data['task'] as Map<String, dynamic>);
       _tasks.add(newTask);
       notifyListeners();
-
       return null;
     } catch (e) {
-      return 'Thêm công việc thất bại: $e';
+      return _messageFromError(e);
     }
   }
 
   Future<String?> updateTask(Task task) async {
     try {
-      if (task.id.isEmpty) {
-        return 'Không tìm thấy công việc';
-      }
+      if (task.id.isEmpty) return 'Khong tim thay cong viec';
 
-      await _firestore
-          .collection('tasks')
-          .doc(task.id)
-          .update(task.toUpdateFirestore());
-
-      final index = _tasks.indexWhere((item) {
-        return item.id == task.id;
-      });
+      final data = await _api.put(
+        '/tasks/${task.id}',
+        body: _taskPayload(task),
+      );
+      final updatedTask = Task.fromJson(data['task'] as Map<String, dynamic>);
+      final index = _tasks.indexWhere((item) => item.id == task.id);
 
       if (index != -1) {
-        _tasks[index] = task.copyWith(updatedAt: DateTime.now());
+        _tasks[index] = updatedTask;
       }
 
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Cập nhật công việc thất bại: $e';
+      return _messageFromError(e);
     }
   }
 
   Future<String?> deleteTask(String taskId, String userId) async {
     try {
-      if (taskId.isEmpty) {
-        return 'Không tìm thấy công việc';
-      }
+      if (taskId.isEmpty) return 'Khong tim thay cong viec';
 
-      await _firestore.collection('tasks').doc(taskId).delete();
-
-      _tasks.removeWhere((task) {
-        return task.id == taskId;
-      });
-
+      await _api.delete('/tasks/$taskId');
+      _tasks.removeWhere((task) => task.id == taskId);
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Xóa công việc thất bại: $e';
+      return _messageFromError(e);
     }
   }
 
   Future<String?> toggleTaskCompletion(String taskId, String userId) async {
     try {
-      final index = _tasks.indexWhere((task) {
-        return task.id == taskId;
-      });
+      final data = await _api.patch('/tasks/$taskId/toggle');
+      final updatedTask = Task.fromJson(data['task'] as Map<String, dynamic>);
+      final index = _tasks.indexWhere((task) => task.id == taskId);
 
-      if (index == -1) {
-        return 'Không tìm thấy công việc';
+      if (index != -1) {
+        _tasks[index] = updatedTask;
       }
 
-      final oldTask = _tasks[index];
-
-      final updatedTask = oldTask.copyWith(
-        isCompleted: !oldTask.isCompleted,
-        updatedAt: DateTime.now(),
-      );
-
-      await _firestore.collection('tasks').doc(taskId).update({
-        'isCompleted': updatedTask.isCompleted,
-        'updatedAt': Timestamp.fromDate(updatedTask.updatedAt),
-      });
-
-      _tasks[index] = updatedTask;
       notifyListeners();
-
       return null;
     } catch (e) {
-      return 'Cập nhật trạng thái thất bại: $e';
+      return _messageFromError(e);
     }
   }
 
   List<Task> getTasksByGroupId(String groupId) {
-    return _tasks.where((task) {
-      return task.groupId == groupId;
-    }).toList()..sort((a, b) {
-      if (a.isCompleted != b.isCompleted) {
-        return a.isCompleted ? 1 : -1;
-      }
-
-      return a.deadline.compareTo(b.deadline);
-    });
+    return _tasks.where((task) => task.groupId == groupId).toList()
+      ..sort((a, b) {
+        if (a.isCompleted != b.isCompleted) {
+          return a.isCompleted ? 1 : -1;
+        }
+        return a.deadline.compareTo(b.deadline);
+      });
   }
 
   void setSearchQuery(String query) {
@@ -216,27 +163,19 @@ class TaskProvider with ChangeNotifier {
   }
 
   List<Task> getOverdueTasks() {
-    return _tasks.where((task) {
-      return task.isOverdue;
-    }).toList();
+    return _tasks.where((task) => task.isOverdue).toList();
   }
 
   List<Task> getUpcomingTasks() {
-    return _tasks.where((task) {
-      return task.isUpcoming;
-    }).toList();
+    return _tasks.where((task) => task.isUpcoming).toList();
   }
 
   List<Task> getCompletedTasks() {
-    return _tasks.where((task) {
-      return task.isCompleted;
-    }).toList();
+    return _tasks.where((task) => task.isCompleted).toList();
   }
 
   List<Task> getPendingTasks() {
-    return _tasks.where((task) {
-      return !task.isCompleted;
-    }).toList();
+    return _tasks.where((task) => !task.isCompleted).toList();
   }
 
   void clearTasks() {
@@ -246,6 +185,24 @@ class TaskProvider with ChangeNotifier {
     _filterCompleted = null;
     _isLoading = false;
     notifyListeners();
+  }
+
+  Map<String, dynamic> _taskPayload(Task task) {
+    return {
+      'title': task.title.trim(),
+      'description': task.description.trim(),
+      'deadline': task.deadline.toIso8601String(),
+      'priority': task.priority.value,
+      'isCompleted': task.isCompleted,
+      'groupId': task.groupId,
+    };
+  }
+
+  String _messageFromError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return 'Co loi xay ra: $error';
   }
 
   void _setLoading(bool value) {

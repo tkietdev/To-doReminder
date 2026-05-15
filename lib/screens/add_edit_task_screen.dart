@@ -11,8 +11,9 @@ import '../models/group_model.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final Task? task;
+  final String? initialGroupId;
 
-  const AddEditTaskScreen({super.key, this.task});
+  const AddEditTaskScreen({super.key, this.task, this.initialGroupId});
 
   @override
   State<AddEditTaskScreen> createState() => _AddEditTaskScreenState();
@@ -54,8 +55,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       _selectedDeadline = DateTime.now().add(const Duration(days: 1));
       _selectedTime = const TimeOfDay(hour: 12, minute: 0);
       _selectedPriority = TaskPriority.medium;
-      _isGroupTask = false;
-      _selectedGroupId = null;
+
+      _isGroupTask = widget.initialGroupId != null;
+      _selectedGroupId = widget.initialGroupId;
     }
   }
 
@@ -153,13 +155,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       updatedAt: DateTime.now(),
     );
 
-    String? error;
-
-    if (isEditMode) {
-      error = await taskProvider.updateTask(task);
-    } else {
-      error = await taskProvider.addTask(task);
-    }
+    final error = isEditMode
+        ? await taskProvider.updateTask(task)
+        : await taskProvider.addTask(task);
 
     if (!mounted) return;
 

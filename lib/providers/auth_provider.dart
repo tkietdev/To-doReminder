@@ -1,11 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/user_model.dart';
+import '../services/api_client.dart';
 
 class AuthProvider with ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -15,178 +14,120 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _currentUser != null;
 
   Future<void> initAuth() async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
 
     try {
-      final firebaseUser = _auth.currentUser;
-      if (firebaseUser != null) {
-        final doc = await _firestore
-            .collection('users')
-            .doc(firebaseUser.uid)
-            .get();
-
-        if (doc.exists) {
-          _currentUser = UserModel.fromJson({
-            'id': firebaseUser.uid,
-            ...doc.data()!,
-          });
-        }
+      await _api.loadToken();
+      if (!_api.hasToken) {
+        _currentUser = null;
+        _setLoading(false);
+        return;
       }
+
+      final data = await _api.get('/auth/me');
+      _currentUser = UserModel.fromJson(data['user'] as Map<String, dynamic>);
     } catch (e) {
       debugPrint('Init auth error: $e');
+      await _api.clearToken();
+      _currentUser = null;
     }
 
-    _isLoading = false;
-    notifyListeners();
+    _setLoading(false);
   }
 
   Future<String?> register(String email, String password, String name) async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
 
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final newUser = UserModel(
-        id: credential.user!.uid,
-        email: email,
-        name: name,
+      await _api.post(
+        '/auth/register',
+        body: {
+          'email': email.trim(),
+          'password': password,
+          'name': name.trim(),
+        },
       );
 
-      await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set(newUser.toJson());
-      await _auth.signOut();
-
-      _isLoading = false;
-      notifyListeners();
+      await _api.clearToken();
+      _currentUser = null;
+      _setLoading(false);
       return null;
-    } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-      notifyListeners();
-
-      switch (e.code) {
-        case 'weak-password':
-          return 'Mật khẩu quá yếu';
-        case 'email-already-in-use':
-          return 'Email đã được sử dụng';
-        case 'invalid-email':
-          return 'Email không hợp lệ';
-        default:
-          return 'Đăng ký thất bại: ${e.message}';
-      }
     } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return 'Có lỗi xảy ra: $e';
+      _setLoading(false);
+      return _messageFromError(e);
     }
   }
 
   Future<String?> login(String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
+    _setLoading(true);
 
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
+      final data = await _api.post(
+        '/auth/login',
+        body: {'email': email.trim(), 'password': password},
       );
-      final doc = await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .get();
 
-      if (doc.exists) {
-        _currentUser = UserModel.fromJson({
-          'id': credential.user!.uid,
-          ...doc.data()!,
-        });
-      }
+      final token = data['token'] as String;
+      await _api.saveToken(token);
+      _currentUser = UserModel.fromJson(data['user'] as Map<String, dynamic>);
 
-      _isLoading = false;
-      notifyListeners();
-      return null; // Success
-    } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-      notifyListeners();
-
-      switch (e.code) {
-        case 'user-not-found':
-          return 'Không tìm thấy tài khoản';
-        case 'wrong-password':
-          return 'Sai mật khẩu';
-        case 'invalid-email':
-          return 'Email không hợp lệ';
-        case 'user-disabled':
-          return 'Tài khoản đã bị vô hiệu hóa';
-        case 'invalid-credential':
-          return 'Email hoặc mật khẩu không đúng';
-        default:
-          return 'Đăng nhập thất bại: ${e.message}';
-      }
+      _setLoading(false);
+      return null;
     } catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return 'Có lỗi xảy ra: $e';
+      _setLoading(false);
+      return _messageFromError(e);
     }
   }
 
   Future<void> logout() async {
-    try {
-      await _auth.signOut();
-      _currentUser = null;
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Logout error: $e');
-    }
+    await _api.clearToken();
+    _currentUser = null;
+    notifyListeners();
   }
 
   Future<String?> updateProfile(String name) async {
-    if (_currentUser == null) return 'Chưa đăng nhập';
+    if (_currentUser == null) return 'Chua dang nhap';
 
     try {
-      await _firestore.collection('users').doc(_currentUser!.id).update({
-        'name': name,
-      });
+      final data = await _api.patch(
+        '/auth/profile',
+        body: {'name': name.trim()},
+      );
 
-      _currentUser = _currentUser!.copyWith(name: name);
+      _currentUser = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       notifyListeners();
-      return null; // Success
+      return null;
     } catch (e) {
-      return 'Cập nhật thất bại: $e';
+      return _messageFromError(e);
     }
   }
 
-  // Đổi mật khẩu
   Future<String?> changePassword(
     String currentPassword,
     String newPassword,
   ) async {
-    if (_currentUser == null) return 'Chưa đăng nhập';
+    if (_currentUser == null) return 'Chua dang nhap';
 
     try {
-      final credential = EmailAuthProvider.credential(
-        email: _currentUser!.email,
-        password: currentPassword,
+      await _api.patch(
+        '/auth/password',
+        body: {'currentPassword': currentPassword, 'newPassword': newPassword},
       );
-      await _auth.currentUser!.reauthenticateWithCredential(credential);
-      await _auth.currentUser!.updatePassword(newPassword);
       return null;
-    } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'wrong-password':
-          return 'Mật khẩu hiện tại không đúng';
-        case 'weak-password':
-          return 'Mật khẩu mới quá yếu';
-        default:
-          return 'Đổi mật khẩu thất bại: ${e.message}';
-      }
     } catch (e) {
-      return 'Có lỗi xảy ra: $e';
+      return _messageFromError(e);
     }
+  }
+
+  String _messageFromError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return 'Co loi xay ra: $error';
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

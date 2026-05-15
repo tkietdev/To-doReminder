@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/group_model.dart';
+import '../services/api_client.dart';
 
 class GroupProvider extends ChangeNotifier {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ApiClient _api = ApiClient();
 
   final List<Group> _groups = [];
 
@@ -15,48 +15,30 @@ class GroupProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  CollectionReference get _groupCollection {
-    return _firestore.collection('groups');
-  }
-
-  CollectionReference get _userCollection {
-    return _firestore.collection('users');
-  }
-
   Future<void> loadGroups(String userId) async {
     try {
       _setLoading(true);
       _error = null;
 
-      final snapshot = await _groupCollection
-          .where('memberIds', arrayContains: userId)
-          .orderBy('updatedAt', descending: true)
-          .get();
+      final data = await _api.get('/groups');
+      final rows = data['groups'] as List<dynamic>? ?? [];
 
       _groups
         ..clear()
         ..addAll(
-          snapshot.docs.map((doc) {
-            return Group.fromFirestore(doc);
-          }).toList(),
+          rows.map((item) {
+            return Group.fromJson(item as Map<String, dynamic>);
+          }),
         );
 
       _setLoading(false);
     } catch (e) {
-      _setError('Không thể tải danh sách nhóm: $e');
+      _setError(_messageFromError(e));
     }
   }
 
   Stream<List<Group>> groupStream(String userId) {
-    return _groupCollection
-        .where('memberIds', arrayContains: userId)
-        .orderBy('updatedAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) {
-            return Group.fromFirestore(doc);
-          }).toList();
-        });
+    return Stream.value(List.unmodifiable(_groups));
   }
 
   Future<String?> addGroup(Group group) async {
@@ -64,21 +46,25 @@ class GroupProvider extends ChangeNotifier {
       _error = null;
 
       if (!group.isValid) {
-        return 'Thông tin nhóm không hợp lệ';
+        return 'Thong tin nhom khong hop le';
       }
 
-      final now = DateTime.now();
+      final data = await _api.post(
+        '/groups',
+        body: {
+          'name': group.name.trim(),
+          'description': group.description.trim(),
+          'memberIds': group.memberIds,
+        },
+      );
 
-      final newGroup = group.copyWith(createdAt: now, updatedAt: now);
-
-      final docRef = await _groupCollection.add(newGroup.toCreateFirestore());
-
-      _groups.insert(0, newGroup.copyWith(id: docRef.id));
+      final newGroup = Group.fromJson(data['group'] as Map<String, dynamic>);
+      _groups.insert(0, newGroup);
 
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Không thể tạo nhóm: $e';
+      return _messageFromError(e);
     }
   }
 
@@ -86,23 +72,21 @@ class GroupProvider extends ChangeNotifier {
     try {
       _error = null;
 
-      if (group.id.isEmpty) {
-        return 'Không tìm thấy nhóm';
-      }
+      if (group.id.isEmpty) return 'Khong tim thay nhom';
+      if (group.name.trim().isEmpty) return 'Ten nhom khong duoc de trong';
 
-      if (group.name.trim().isEmpty) {
-        return 'Tên nhóm không được để trống';
-      }
+      final data = await _api.put(
+        '/groups/${group.id}',
+        body: {
+          'name': group.name.trim(),
+          'description': group.description.trim(),
+        },
+      );
 
-      final updatedGroup = group.copyWith(updatedAt: DateTime.now());
-
-      await _groupCollection
-          .doc(group.id)
-          .update(updatedGroup.toUpdateFirestore());
-
-      final index = _groups.indexWhere((item) {
-        return item.id == group.id;
-      });
+      final updatedGroup = Group.fromJson(
+        data['group'] as Map<String, dynamic>,
+      );
+      final index = _groups.indexWhere((item) => item.id == group.id);
 
       if (index != -1) {
         _groups[index] = updatedGroup;
@@ -111,7 +95,7 @@ class GroupProvider extends ChangeNotifier {
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Không thể cập nhật nhóm: $e';
+      return _messageFromError(e);
     }
   }
 
@@ -119,20 +103,15 @@ class GroupProvider extends ChangeNotifier {
     try {
       _error = null;
 
-      if (groupId.isEmpty) {
-        return 'Không tìm thấy nhóm';
-      }
+      if (groupId.isEmpty) return 'Khong tim thay nhom';
 
-      await _groupCollection.doc(groupId).delete();
-
-      _groups.removeWhere((group) {
-        return group.id == groupId;
-      });
+      await _api.delete('/groups/$groupId');
+      _groups.removeWhere((group) => group.id == groupId);
 
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Không thể xóa nhóm: $e';
+      return _messageFromError(e);
     }
   }
 
@@ -144,55 +123,18 @@ class GroupProvider extends ChangeNotifier {
       _error = null;
 
       final emailText = email.trim().toLowerCase();
+      if (groupId.isEmpty) return 'Khong tim thay nhom';
+      if (emailText.isEmpty) return 'Vui long nhap email';
 
-      if (groupId.isEmpty) {
-        return 'Không tìm thấy nhóm';
-      }
-
-      if (emailText.isEmpty) {
-        return 'Vui lòng nhập email';
-      }
-
-      final groupIndex = _groups.indexWhere((group) {
-        return group.id == groupId;
-      });
-
-      if (groupIndex == -1) {
-        return 'Không tìm thấy nhóm';
-      }
-
-      final userSnapshot = await _userCollection
-          .where('email', isEqualTo: emailText)
-          .limit(1)
-          .get();
-
-      if (userSnapshot.docs.isEmpty) {
-        return 'Không tìm thấy người dùng với email này';
-      }
-
-      final userId = userSnapshot.docs.first.id;
-      final group = _groups[groupIndex];
-
-      if (group.memberIds.contains(userId)) {
-        return 'Người dùng đã có trong nhóm';
-      }
-
-      await _groupCollection.doc(groupId).update({
-        'memberIds': FieldValue.arrayUnion([userId]),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-
-      final newMembers = List<String>.from(group.memberIds)..add(userId);
-
-      _groups[groupIndex] = group.copyWith(
-        memberIds: newMembers,
-        updatedAt: DateTime.now(),
+      final data = await _api.post(
+        '/groups/$groupId/members/email',
+        body: {'email': emailText},
       );
 
-      notifyListeners();
+      _replaceGroup(Group.fromJson(data['group'] as Map<String, dynamic>));
       return null;
     } catch (e) {
-      return 'Không thể thêm thành viên: $e';
+      return _messageFromError(e);
     }
   }
 
@@ -204,39 +146,18 @@ class GroupProvider extends ChangeNotifier {
       _error = null;
 
       if (groupId.isEmpty || userId.isEmpty) {
-        return 'Thông tin thành viên không hợp lệ';
+        return 'Thong tin thanh vien khong hop le';
       }
 
-      final index = _groups.indexWhere((group) {
-        return group.id == groupId;
-      });
-
-      if (index == -1) {
-        return 'Không tìm thấy nhóm';
-      }
-
-      final group = _groups[index];
-
-      if (group.memberIds.contains(userId)) {
-        return 'Người dùng đã có trong nhóm';
-      }
-
-      await _groupCollection.doc(groupId).update({
-        'memberIds': FieldValue.arrayUnion([userId]),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-
-      final newMembers = List<String>.from(group.memberIds)..add(userId);
-
-      _groups[index] = group.copyWith(
-        memberIds: newMembers,
-        updatedAt: DateTime.now(),
+      final data = await _api.post(
+        '/groups/$groupId/members',
+        body: {'userId': userId},
       );
 
-      notifyListeners();
+      _replaceGroup(Group.fromJson(data['group'] as Map<String, dynamic>));
       return null;
     } catch (e) {
-      return 'Không thể thêm thành viên: $e';
+      return _messageFromError(e);
     }
   }
 
@@ -248,59 +169,26 @@ class GroupProvider extends ChangeNotifier {
       _error = null;
 
       if (groupId.isEmpty || userId.isEmpty) {
-        return 'Thông tin thành viên không hợp lệ';
+        return 'Thong tin thanh vien khong hop le';
       }
 
-      final index = _groups.indexWhere((group) {
-        return group.id == groupId;
-      });
-
-      if (index == -1) {
-        return 'Không tìm thấy nhóm';
-      }
-
-      final group = _groups[index];
-
-      if (group.creatorId == userId) {
-        return 'Không thể xóa chủ nhóm khỏi nhóm';
-      }
-
-      await _groupCollection.doc(groupId).update({
-        'memberIds': FieldValue.arrayRemove([userId]),
-        'updatedAt': Timestamp.fromDate(DateTime.now()),
-      });
-
-      final newMembers = List<String>.from(group.memberIds)..remove(userId);
-
-      _groups[index] = group.copyWith(
-        memberIds: newMembers,
-        updatedAt: DateTime.now(),
-      );
-
-      notifyListeners();
+      final data = await _api.delete('/groups/$groupId/members/$userId');
+      _replaceGroup(Group.fromJson(data['group'] as Map<String, dynamic>));
       return null;
     } catch (e) {
-      return 'Không thể xóa thành viên: $e';
+      return _messageFromError(e);
     }
   }
 
   Future<Group?> getGroupById(String groupId) async {
     try {
       _error = null;
+      if (groupId.isEmpty) return null;
 
-      if (groupId.isEmpty) {
-        return null;
-      }
-
-      final doc = await _groupCollection.doc(groupId).get();
-
-      if (!doc.exists) {
-        return null;
-      }
-
-      return Group.fromFirestore(doc);
+      final data = await _api.get('/groups/$groupId');
+      return Group.fromJson(data['group'] as Map<String, dynamic>);
     } catch (e) {
-      _error = 'Không thể lấy thông tin nhóm: $e';
+      _error = _messageFromError(e);
       notifyListeners();
       return null;
     }
@@ -308,9 +196,7 @@ class GroupProvider extends ChangeNotifier {
 
   Group? findGroupById(String groupId) {
     try {
-      return _groups.firstWhere((group) {
-        return group.id == groupId;
-      });
+      return _groups.firstWhere((group) => group.id == groupId);
     } catch (_) {
       return null;
     }
@@ -321,6 +207,23 @@ class GroupProvider extends ChangeNotifier {
     _error = null;
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _replaceGroup(Group group) {
+    final index = _groups.indexWhere((item) => item.id == group.id);
+    if (index == -1) {
+      _groups.insert(0, group);
+    } else {
+      _groups[index] = group;
+    }
+    notifyListeners();
+  }
+
+  String _messageFromError(Object error) {
+    if (error is ApiException) {
+      return error.message;
+    }
+    return 'Co loi xay ra: $error';
   }
 
   void _setLoading(bool value) {

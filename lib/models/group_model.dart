@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Group {
   final String id;
   final String name;
@@ -31,20 +29,6 @@ class Group {
     );
   }
 
-  factory Group.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-
-    return Group(
-      id: doc.id,
-      name: data['name'] as String? ?? '',
-      description: data['description'] as String? ?? '',
-      creatorId: data['creatorId'] as String? ?? '',
-      memberIds: List<String>.from(data['memberIds'] ?? []),
-      createdAt: _parseDateTime(data['createdAt']),
-      updatedAt: _parseDateTime(data['updatedAt']),
-    );
-  }
-
   factory Group.fromJson(Map<String, dynamic> json) {
     return Group(
       id: json['id'] as String? ?? '',
@@ -55,39 +39,6 @@ class Group {
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
     );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'name': name,
-      'description': description,
-      'creatorId': creatorId,
-      'memberIds': memberIds,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
-
-  Map<String, dynamic> toCreateFirestore() {
-    final now = DateTime.now();
-
-    return {
-      'name': name.trim(),
-      'description': description.trim(),
-      'creatorId': creatorId,
-      'memberIds': memberIds,
-      'createdAt': Timestamp.fromDate(now),
-      'updatedAt': Timestamp.fromDate(now),
-    };
-  }
-
-  Map<String, dynamic> toUpdateFirestore() {
-    return {
-      'name': name.trim(),
-      'description': description.trim(),
-      'memberIds': memberIds,
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
-    };
   }
 
   Map<String, dynamic> toJson() {
@@ -138,10 +89,6 @@ class Group {
 
   static DateTime _parseDateTime(dynamic value) {
     if (value == null) return DateTime.now();
-
-    if (value is Timestamp) {
-      return value.toDate();
-    }
 
     if (value is DateTime) {
       return value;

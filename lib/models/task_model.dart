@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum TaskPriority {
   low,
   medium,
@@ -84,26 +82,6 @@ class Task {
     );
   }
 
-  factory Task.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>? ?? {};
-
-    return Task(
-      id: doc.id,
-      title: data['title'] as String? ?? '',
-      description: data['description'] as String? ?? '',
-      deadline: _parseDateTime(data['deadline']),
-      priority: TaskPriority.fromString(
-        data['priority'] as String? ?? 'medium',
-      ),
-      isCompleted: data['isCompleted'] as bool? ?? false,
-      userId: data['userId'] as String? ?? '',
-      groupId: data['groupId'] as String?,
-      memberIds: List<String>.from(data['memberIds'] ?? []),
-      createdAt: _parseDateTime(data['createdAt']),
-      updatedAt: _parseDateTime(data['updatedAt']),
-    );
-  }
-
   factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
       id: json['id'] as String? ?? '',
@@ -120,52 +98,6 @@ class Task {
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
     );
-  }
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'title': title.trim(),
-      'description': description.trim(),
-      'deadline': Timestamp.fromDate(deadline),
-      'priority': priority.value,
-      'isCompleted': isCompleted,
-      'userId': userId,
-      'groupId': groupId,
-      'memberIds': memberIds,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
-
-  Map<String, dynamic> toCreateFirestore() {
-    final now = DateTime.now();
-
-    return {
-      'title': title.trim(),
-      'description': description.trim(),
-      'deadline': Timestamp.fromDate(deadline),
-      'priority': priority.value,
-      'isCompleted': isCompleted,
-      'userId': userId,
-      'groupId': groupId,
-      'memberIds': memberIds,
-      'createdAt': Timestamp.fromDate(now),
-      'updatedAt': Timestamp.fromDate(now),
-    };
-  }
-
-  Map<String, dynamic> toUpdateFirestore() {
-    return {
-      'title': title.trim(),
-      'description': description.trim(),
-      'deadline': Timestamp.fromDate(deadline),
-      'priority': priority.value,
-      'isCompleted': isCompleted,
-      'userId': userId,
-      'groupId': groupId,
-      'memberIds': memberIds,
-      'updatedAt': Timestamp.fromDate(DateTime.now()),
-    };
   }
 
   Map<String, dynamic> toJson() {
@@ -236,10 +168,6 @@ class Task {
 
   static DateTime _parseDateTime(dynamic value) {
     if (value == null) return DateTime.now();
-
-    if (value is Timestamp) {
-      return value.toDate();
-    }
 
     if (value is DateTime) {
       return value;

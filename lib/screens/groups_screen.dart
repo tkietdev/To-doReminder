@@ -318,6 +318,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   }
 
   void _showGroupDetail(BuildContext context, Group group) {
+    final screenContext = context;
     final currentUserId = context.read<AuthProvider>().currentUser?.id ?? '';
     final isCreator = group.isCreator(currentUserId);
 
@@ -333,7 +334,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           minChildSize: 0.45,
           maxChildSize: 0.95,
           expand: false,
-          builder: (context, scrollController) {
+          builder: (_, scrollController) {
             return Padding(
               padding: const EdgeInsets.all(20),
               child: ListView(
@@ -447,7 +448,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(bottomSheetContext);
-                        _showAddMemberDialog(context, group);
+                        _showAddMemberDialog(screenContext, group);
                       },
                       icon: const Icon(Icons.person_add),
                       label: const Text('Thêm thành viên'),
@@ -456,7 +457,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(bottomSheetContext);
-                        _showEditGroupDialog(context, group);
+                        _showEditGroupDialog(screenContext, group);
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('Sửa nhóm'),
@@ -465,7 +466,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(bottomSheetContext);
-                        _showDeleteConfirmation(context, group);
+                        _showDeleteConfirmation(screenContext, group);
                       },
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Xóa nhóm'),

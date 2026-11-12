@@ -1,4 +1,4 @@
-# 📱 Ứng dụng Quản lý Công việc Cá nhân (To-do + Reminder)
+# 📱 Ứng dụng Quản lý Công việc Cá nhân (To-do + Reminder) - Mobile
 
 ## 📌 Giới thiệu
 
